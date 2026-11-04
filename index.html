@@ -295,11 +295,68 @@ button,a{font:inherit}
   };
   function render(){ world.style.transform=`translate(${x}px,${y}px) scale(${scale})`; }
   function focus(key){ const t=targets[key]||targets.origin; const r=app.getBoundingClientRect(); x=r.width/2-t[0]*scale; y=r.height/2-t[1]*scale; render(); }
-  function zoom(mult,cx,cy){ const old=scale; scale=Math.max(.44,Math.min(1.8,scale*mult)); x=cx-(cx-x)*scale/old; y=cy-(cy-y)*scale/old; render(); }
-  viewport.addEventListener('pointerdown',e=>{ if(e.target.closest('button,a')) return; drag={id:e.pointerId,sx:e.clientX,sy:e.clientY,x,y}; moved=false; viewport.classList.add('dragging'); viewport.setPointerCapture(e.pointerId); });
-  viewport.addEventListener('pointermove',e=>{ if(!drag||e.pointerId!==drag.id) return; const dx=e.clientX-drag.sx, dy=e.clientY-drag.sy; if(Math.abs(dx)+Math.abs(dy)>4) moved=true; x=drag.x+dx; y=drag.y+dy; render(); });
-  function stop(){ drag=null; viewport.classList.remove('dragging'); }
-  viewport.addEventListener('pointerup',stop); viewport.addEventListener('pointercancel',stop);
+  function zoom(mult,cx,cy){ const old=scale; scale=Math.max(.44,Math.min(2.8,scale*mult)); x=cx-(cx-x)*scale/old; y=cy-(cy-y)*scale/old; render(); }
+  // Touch gestures: one finger pans the specimen field; two fingers pinch to zoom.
+  // Pointer Events also work with a mouse or stylus, without disturbing links/buttons.
+  const pointers=new Map();
+  let pinch=null;
+  function eventPoint(e){const r=app.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};}
+  function startPinch(){
+    const p=[...pointers.values()];
+    if(p.length<2)return;
+    const a=p[0],b=p[1];
+    const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+    pinch={distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),scale,
+           worldX:(mx-x)/scale,worldY:(my-y)/scale};
+    drag=null;
+    moved=true;
+    viewport.classList.remove('dragging');
+  }
+  viewport.addEventListener('pointerdown',e=>{
+    if(e.target.closest('button,a'))return;
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    const p=eventPoint(e);
+    pointers.set(e.pointerId,p);
+    viewport.setPointerCapture(e.pointerId);
+    if(pointers.size===1){drag={id:e.pointerId,sx:p.x,sy:p.y,x,y};moved=false;viewport.classList.add('dragging');}
+    else if(pointers.size===2)startPinch();
+  });
+  viewport.addEventListener('pointermove',e=>{
+    if(!pointers.has(e.pointerId))return;
+    const p=eventPoint(e);
+    pointers.set(e.pointerId,p);
+    if(pointers.size>=2){
+      if(!pinch)startPinch();
+      const pair=[...pointers.values()],a=pair[0],b=pair[1];
+      const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+      const distance=Math.max(1,Math.hypot(a.x-b.x,a.y-b.y));
+      scale=Math.max(.44,Math.min(2.8,pinch.scale*distance/pinch.distance));
+      x=mx-pinch.worldX*scale;
+      y=my-pinch.worldY*scale;
+      moved=true;
+      render();
+    }else if(drag&&e.pointerId===drag.id){
+      const dx=p.x-drag.sx,dy=p.y-drag.sy;
+      if(Math.abs(dx)+Math.abs(dy)>4)moved=true;
+      x=drag.x+dx;y=drag.y+dy;render();
+    }
+  });
+  function stopPointer(e){
+    if(!pointers.has(e.pointerId))return;
+    pointers.delete(e.pointerId);
+    if(pointers.size===1){
+      const [id,p]=pointers.entries().next().value;
+      pinch=null;
+      drag={id,sx:p.x,sy:p.y,x,y};
+      viewport.classList.add('dragging');
+    }else if(pointers.size===0){
+      pinch=null;drag=null;
+      viewport.classList.remove('dragging');
+    }else startPinch();
+  }
+  viewport.addEventListener('pointerup',stopPointer);
+  viewport.addEventListener('pointercancel',stopPointer);
+  viewport.addEventListener('lostpointercapture',stopPointer);
   viewport.addEventListener('wheel',e=>{ e.preventDefault(); const r=app.getBoundingClientRect(); zoom(e.deltaY<0?1.08:.92,e.clientX-r.left,e.clientY-r.top); },{passive:false});
   document.addEventListener('click',e=>{
     const btn=e.target.closest('button');
