@@ -271,28 +271,15 @@ button,a{font:inherit}
 <div class="tool mono">DRAG TO EXPLORE<br/>SCROLL TO ZOOM<br/>RESET TO RECENTER</div>
 <div class="controls"><button data-zoom="-1">−</button><button data-zoom="1">+</button><button data-focus="origin" style="min-width:auto;padding:0 10px;font-size:11px">RESET</button></div>
 <div class="help mono">PLANTS OPEN WIKIPEDIA · ARCHITECTURE OPENS PROJECT ARCHIVE</div>
-<section class="dialog" hidden="" id="dialog">
-<button aria-label="close" class="close" data-close="">×</button>
-<div class="tag" id="dialogTag"></div>
-<h2 id="dialogTitle"></h2>
-<p id="dialogBody"></p>
-<div class="tiny">This is still a homepage prototype. Later each card can open a full project page or section index.</div>
-</section>
+
 </main>
 <script>
 (function(){
   const viewport=document.getElementById('viewport');
   const world=document.getElementById('world');
-  const dialog=document.getElementById('dialog');
   const app=document.getElementById('app');
   let x=0,y=0,scale=.69,drag=null,moved=false;
   const targets={origin:[1100,740],architecture:[450,360],research:[1610,350],archive:[1770,790],about:[500,1250]};
-  const copy={
-    architecture:{tag:'PUBLICATION 001 / ARCHITECTURE',title:'Architecture',body:'A collection of architectural work, drawings, models, and case studies from academic and professional practice.'},
-    research:{tag:'PUBLICATION 002 / RESEARCH',title:'Research',body:'An index of research into design and health, materials, and building systems, including Vital Plate, diagrams, and methodological notes.'},
-    archive:{tag:'PUBLICATION 003 / VISUAL ARCHIVE',title:'Archive',body:'An ongoing collection of collage, botanical imagery, drawings, photographs, and fragments of everyday life.'},
-    about:{tag:'PUBLICATION 004 / ABOUT',title:'About / CV',body:'Background, education, professional experience, and contact information.'}
-  };
   function render(){ world.style.transform=`translate(${x}px,${y}px) scale(${scale})`; }
   function focus(key){ const t=targets[key]||targets.origin; const r=app.getBoundingClientRect(); x=r.width/2-t[0]*scale; y=r.height/2-t[1]*scale; render(); }
   function zoom(mult,cx,cy){ const old=scale; scale=Math.max(.44,Math.min(2.8,scale*mult)); x=cx-(cx-x)*scale/old; y=cy-(cy-y)*scale/old; render(); }
@@ -361,20 +348,9 @@ button,a{font:inherit}
   document.addEventListener('click',e=>{
     const btn=e.target.closest('button');
     if(!btn) return;
-    if(btn.dataset.close!==undefined){ dialog.hidden=true; return; }
     if(btn.dataset.zoom){ const r=app.getBoundingClientRect(); zoom(Number(btn.dataset.zoom)>0?1.17:1/1.17,r.width/2,r.height/2); return; }
-    if(btn.dataset.focus){ dialog.hidden=true; focus(btn.dataset.focus); return; }
-    if(btn.dataset.key && !moved){
-      if(btn.dataset.key==='architecture'){ window.location.href='architecture.html'; return; }
-      if(btn.dataset.key==='archive'){ window.location.href='archive.html'; return; }
-      const d=copy[btn.dataset.key];
-      if(d){
-        document.getElementById('dialogTag').textContent=d.tag;
-        document.getElementById('dialogTitle').textContent=d.title;
-        document.getElementById('dialogBody').textContent=d.body;
-        dialog.hidden=false;
-      }
-    }
+    if(btn.dataset.focus){ focus(btn.dataset.focus); return; }
+    if(btn.dataset.key && !moved){ focus(btn.dataset.key); }
   });
   focus('origin');
 })();
